@@ -1,0 +1,136 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  body { background:#fff; }
+  .app-container { position:relative; box-sizing:border-box; width:calc(100% - 40px); max-width:none; margin:8px auto; font-family: Arial, sans-serif; padding:10px; font-size:16px; }
+  .app-grid { display:flex; gap:20px; align-items:flex-start; }
+  /* left 60% for editor, right 40% for records+chart */
+  .left-col { flex: 0 0 60%; }
+  .right-col { flex: 0 0 40%; display:flex; flex-direction:column; gap:12px; }
+  #input-area { padding:14px; }
+  .itemRow input[type=number], .itemRow input[type=text] { font-size:16px; height:36px; box-sizing:border-box; }
+  .itemRow .itemName { font-size:16px; }
+  button { padding:8px 12px; font-size:15px; }
+  #records table { font-size:15px; }
+  #fixedList, #varList { background:#fafafa; border-radius:4px; }
+  #chart { max-width:100%; }
+  /* records list scroll area - applied only when many months saved */
+  .records-scrollable { max-height: calc(6 * 48px + 42px); overflow:auto; }
+  .chart-wrapper { height:380px; }
+  .chart-no-data { color:#666; padding:18px; text-align:center; font-size:14px; }
+  /* records table checkbox larger and centered */
+  #records table td, #records table th { vertical-align: middle; }
+  #records table td input.rPaid, #records table td input.sPaid { transform: scale(1.4); display:block; margin:6px auto; }
+  #records table th:nth-child(5), #records table th:nth-child(6),
+  #records table td:nth-child(5), #records table td:nth-child(6) { width:84px; text-align:center; }
+  /* top header */
+    /* operation column: center and size buttons */
+    #records table th:nth-child(7), #records table td:nth-child(7) { width:120px; text-align:center; }
+    #records table td .loadBtn, #records table td .delBtn {
+      display:inline-block; margin:6px 4px; padding:6px 10px; min-width:60px; box-sizing:border-box; vertical-align:middle;
+    }
+    /* show about 6 rows before scrolling (approx) - controlled by class */
+  .app-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; border-bottom:1px solid #e6e6e6; margin-bottom:8px; }
+  .app-header .header-left { display:flex; gap:12px; align-items:center; }
+  .logo { display:inline-flex; align-items:center; gap:8px; }
+  .logo svg { width:36px; height:36px; display:block; }
+  .logo i { font-size:28px; color:#333; }
+  /* Larger checkbox in rows */
+  .itemRow .itemChk { transform:scale(1.5); transform-origin:center; margin:0; }
+  /* ensure checkbox container doesn't collapse */
+  .chk-cell { width:48px; display:flex; align-items:center; justify-content:center; }
+  .app-title { margin:0; font-size:28px; font-weight:800; letter-spacing:0.5px; }
+  .app-sub { display:none; }
+  #resetAll { padding:6px; font-size:13px; border:1px solid #ddd; background:#fff; border-radius:4px; }
+  button.icon-button { width:36px; height:36px; padding:6px; display:inline-flex; align-items:center; justify-content:center; }
+  button.icon-button svg { width:18px; height:18px; }
+  button.icon-button i { font-size:18px; color:#333; }
+  @media (max-width:1000px){
+    .app-grid { flex-direction:column; }
+    .itemRow { flex-wrap:wrap; }
+    .itemRow input { width:100% !important; }
+  }
+</style>
+
+<div class="app-container">
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo" aria-hidden="true">
+        <i class="fa-solid fa-wallet" aria-hidden="true"></i>
+      </div>
+      <div>
+        <h1 class="app-title">家計簿管理</h1>
+      </div>
+    </div>
+    <div>
+      <button id="resetAll" class="icon-button" title="リセット" aria-label="リセット">
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+  <div class="app-grid">
+    <!-- 左: 入力エリア -->
+    <div class="left-col">
+      <section id="input-area" style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; margin-bottom:8px;">
+          <div style="flex:1; text-align:left;"><button id="prevMonth">◀ 前月</button></div>
+          <div style="flex:1; text-align:center;"><div id="monthLabel" style="font-weight:bold;"></div></div>
+          <div style="flex:1; text-align:right;"><button id="nextMonth">次月 ▶</button></div>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+          <!-- 固定費 -->
+          <div style="flex:1; border:1px solid #eee; padding:8px;">
+            <h4 style="margin:0 0 8px 0;">固定費</h4>
+            <div id="fixedList"></div>
+            <button id="addFixed">＋ 固定費を追加</button>
+          </div>
+
+          <!-- 変動費 -->
+          <div style="flex:1; border:1px solid #eee; padding:8px;">
+            <h4 style="margin:0 0 8px 0;">変動費</h4>
+            <div id="varList"></div>
+            <button id="addVar">＋ 変動費を追加</button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:8px; align-items:center;">
+          <div>合計: <span id="sumTotal">0</span> 円</div>
+          <div>りく: <span id="sumRiku">0</span> 円</div>
+          <div>さや: <span id="sumSaya">0</span> 円</div>
+          <div style="margin-left:auto;"><button id="saveMonth">保存</button></div>
+        </div>
+        <div style="font-size:12px; color:#666; margin-top:6px">※チェックを外すと計算対象外になります。行の「✖」で削除できます。</div>
+      </section>
+      <section id="chart-area-left" style="border:1px solid #ddd; padding:12px;">
+        <h3 style="margin-top:0;">支出グラフ</h3>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div style="font-size:13px; color:#333;">表示開始:</div>
+          <button id="chartPrev" style="padding:4px 8px;">◀</button>
+          <select id="chartStart"></select>
+          <button id="chartNext" style="padding:4px 8px;">▶</button>
+          <div style="margin-left:auto; font-size:13px; color:#666;">最大12か月表示</div>
+        </div>
+        <div class="chart-wrapper">
+              <div class="chart-scroll" style="overflow-x:auto; overflow-y:hidden; padding-bottom:0; height:100%;">
+                <canvas id="chart" style="display:block; max-height:100%;"></canvas>
+                <div id="chartNoData" class="chart-no-data" style="display:none;">保存された実績はありません。</div>
+              </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 右: 実績一覧 と グラフ -->
+    <div class="right-col">
+      <section id="records-area" style="border:1px solid #ddd; padding:12px; overflow:hidden;">
+        <h3 style="margin-top:0;">実績一覧（最新順）</h3>
+        <div id="records"></div>
+      </section>
+
+      <!-- chart moved to left column -->
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="script.js"></script>
